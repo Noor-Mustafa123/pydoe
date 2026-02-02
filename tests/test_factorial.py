@@ -1,4 +1,5 @@
 import unittest
+import math
 
 import numpy as np
 import pytest
@@ -10,6 +11,8 @@ from pyDOE.doe_factorial import (
     fracfact_opt,
     fullfact,
     validate_generator,
+    _calculate_min_base_factors,
+    _max_factors_for_resolution,
 )
 
 
@@ -198,6 +201,46 @@ class TestFactorial(unittest.TestCase):
         for n, res in [(5, 3), (7, 4), (9, 5)]:
             design = fracfact_by_res(n, res)
             assert design.shape[1] == n
+
+    def test_calculate_min_base_factors_res_4_with_loop_increment(self):
+        # n large enough to force k to increase
+        n = 12
+        res = 4
+        k = _calculate_min_base_factors(n, res)
+
+        initial_k = max(res - 1, math.ceil(math.log2(n + 1)))
+        assert k >= initial_k
+        assert _max_factors_for_resolution(k, res) >= n
+        assert _max_factors_for_resolution(k - 1, res) < n
+
+
+    def test_calculate_min_base_factors_res_5_path(self):
+        n = 10
+        res = 5
+        k = _calculate_min_base_factors(n, res)
+
+        assert k >= res - 1
+        assert _max_factors_for_resolution(k, res) >= n
+
+
+    def test_calculate_min_base_factors_high_resolution_fallback(self):
+        # res > 5 triggers conservative fallback
+        n = 6
+        res = 6
+        k = _calculate_min_base_factors(n, res)
+
+        assert k >= res - 1
+        assert _max_factors_for_resolution(k, res) >= n
+
+
+    def test_calculate_min_base_factors_boundary_near_26(self):
+        # Large n that pushes k close to 26 but still valid
+        n = 2**20
+        res = 4
+        k = _calculate_min_base_factors(n, res)
+
+        assert k <= 26
+        assert _max_factors_for_resolution(k, res) >= n
 
 
 @pytest.mark.parametrize(
